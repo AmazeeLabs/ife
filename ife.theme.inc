@@ -54,7 +54,12 @@ function theme_ife_form_element($variables) {
     // Avoid issues with inline form element.
     $output = '<div class="clearfix">' . $output . '</div>';
 
-    $output .= '<div class="messages error messages-inline">' . $variables['element']['#ife_error'] . '</div>';
+    if (variable_get('ife_d8_style', 0)) {
+      $output = '<div class="messages error messages-inline">' . $variables['element']['#ife_error'] . $output . '</div>';
+    }
+    else {
+      $output .= '<div class="messages error messages-inline">' . $variables['element']['#ife_error'] . '</div>';
+    }
   }
 
   return $output;
