@@ -35,6 +35,13 @@ function ife_settings_form($form, $form_state) {
     '#default_value' => variable_get('ife_show_everywhere', 0)
   );
 
+  $form['general_settings']['ife_d8_style'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Use Drupal 8 style'),
+    '#description' => t('Form elements will be printed inside error messages. See <a href="https://www.drupal.org/node/1493324" target="_blank">#1493324</a> for an example.'),
+    '#default_value' => variable_get('ife_d8_style', 0),
+  );
+
   $form['general_settings']['ife_display'] = array(
     '#type' => 'select',
     '#title' => t('Default display settings'),
