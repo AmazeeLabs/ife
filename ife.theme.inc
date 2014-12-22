@@ -48,6 +48,8 @@ function theme_ife_form_element($variables) {
 
   // Add in the error if set.
   if (isset($variables['element']['#ife_error']) && $variables['element']['#ife_error']) {
+    // Avoid issues with inline form element.
+    $element = '<div class="clearfix">' . $element . '</div>';
 
     $error = '<div class="messages error messages-inline">' . $variables['element']['#ife_error'] . '</div>';
 
