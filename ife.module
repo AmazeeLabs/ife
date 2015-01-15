@@ -200,7 +200,12 @@ function ife_form_alter(&$form, &$form_state, $form_id) {
     $display = ife_form_id_display($ife_options);
 
     $form['#ife_display'] = $display;
-    $form['#validate'][] = 'ife_form_validator';
+    if (strpos($form_id, 'commerce_checkout_form_') === 0) {
+      $form['#pre_render'][] = 'ife_commerce_checkout_form_pre_render';
+    }
+    else {
+      $form['#validate'][] = 'ife_form_validator';
+    }
   }
 
   // Print form_ids.
@@ -233,21 +238,30 @@ function _ife_blacklist() {
  */
 function ife_form_validator(&$form, &$form_state) {
   static $global_error_processed = FALSE;
-
+  // Do not validate on ajax requests, it may not work good in all cases.
+  // See below
+  if(!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+    return TRUE;
+  }
+  if (empty($form['#form_id'])) {
+    return TRUE;
+  }
   $form_errors = form_get_errors();
   if (!empty($form_errors)) {
     ife_element_errors_set($form, $form['#ife_display']);
 
-    if ($form['#ife_display'] == IFE_MESSAGE_ALTERNATE && !$global_error_processed) {
+    if ($form['#ife_display'] == IFE_MESSAGE_ALTERNATE && empty($global_error_processed[$form['#form_id']])) {
       $message = filter_xss_admin(variable_get('ife_general_message', 'Please correct all highlighted errors and try again.'));
       drupal_set_message($message, 'error');
 
-      $global_error_processed = TRUE;
+      $global_error_processed[$form['#form_id']] = TRUE;
     }
   }
 
   // This function returns TRUE, because is does not really validate anything
   // and to support commerce modules this function needs to have a return value.
+  // Change: the commerce module does not need anymore this, we do not use
+  // the ife_commerce_checkout_pane_info_alter() anymore.
   return TRUE;
 }
 
@@ -257,39 +271,46 @@ function ife_form_validator(&$form, &$form_state) {
  * by our theming function theme_ife_form_element().
  */
 function ife_element_errors_set(&$element, $display, $carry_down = FALSE) {
-  if (!isset($_SESSION['messages']['error'])) {
-    return;
-  }
 
   // Check for errors and settings
   $errors = form_get_errors();
-  $element_id = implode('][', $element['#parents']);
-  if (!empty($errors[$element_id])) {
-    $error_message = $errors[$element_id];
+  if (!empty($element['#parents'])) {
+    $element_id = implode('][', $element['#parents']);
+    if (!empty($errors[$element_id])) {
+      $error_message = $errors[$element_id];
 
-    // Get error id
-    $error_id = array_search($error_message, $_SESSION['messages']['error']);
-
-    if ($error_id !== FALSE) {
-      if (isset($display) && $display != IFE_MESSAGE_LEAVE) {
-        unset($_SESSION['messages']['error'][$error_id]);
-        $_SESSION['messages']['error'] = array_values($_SESSION['messages']['error']);
+      // To show only one message we do the following steps:
+      // 1. We first backup all the error messages into a variable.
+      $tmp_error_messages = isset($_SESSION['messages']['error']) ? $_SESSION['messages']['error'] : array();
+      // 2. We replace the error messages in the session with the error we want
+      // to show.
+      $_SESSION['messages']['error'] = array($error_message);
+      // 3. We prepend the error messages to the element, by adding them in the
+      // #prefix of the element.
+      if (empty($element['#prefix'])) {
+        $element['#prefix'] = '';
+      }
+      $element['#prefix'] = theme('status_messages', array('display' => 'error')) . $element['#prefix'];
+      // 4. We restore the errors from the backup into the session.
+      if (!empty($tmp_error_messages)) {
+        $_SESSION['messages']['error'] = $tmp_error_messages;
       }
 
-      if (count($_SESSION['messages']['error']) <= 0) {
-        unset($_SESSION['messages']['error']);
+      // Check to see if we should remove or leave the error message in the
+      // session.
+      if (isset($display) && $display != IFE_MESSAGE_LEAVE && isset($_SESSION['messages']['error'])) {
+        // Code here!
+        $error_id = array_search($error_message, $_SESSION['messages']['error']);
+        if ($error_id !== FALSE) {
+          unset($_SESSION['messages']['error'][$error_id]);
+          if (count($_SESSION['messages']['error']) <= 0) {
+            unset($_SESSION['messages']['error']);
+          }
+          else {
+            $_SESSION['messages']['error'] = array_values($_SESSION['messages']['error']);
+          }
+        }
       }
-
-      // Add error message to the element.
-      $element['#ife_error'] = $error_message;
-
-      // Add in our theme wrapper on the fly
-      if (!isset($element['#theme_wrappers']) || !in_array('ife_form_element', $element['#theme_wrappers'])) {
-        $element['#theme_wrappers'][] = 'ife_form_element';
-      }
-
-      // Found a matching error, no need to continue.
-      return;
     }
   }
 
@@ -302,8 +323,31 @@ function ife_element_errors_set(&$element, $display, $carry_down = FALSE) {
 }
 
 /**
- * Implements hook_commerce_checkout_pane_info_alter().
+ * Pre render callback for the commerce checkout form.
  */
+function ife_commerce_checkout_form_pre_render(&$element) {
+  $validated_forms = drupal_static('drupal_validate_form', array());
+  if (!empty($validated_forms[$element['#form_id']]) && $errors = form_get_errors()) {
+    // A fake form_state, we do not need it in the ife_form_validator().
+    $form_state = array();
+    ife_form_validator($element, $form_state);
+    foreach (element_children($element) as $child) {
+      if (!empty($element[$child][$child . '_messages'])) {
+        unset($element[$child][$child . '_messages']);
+      }
+    }
+  }
+  return $element;
+}
+
+/**
+ * Implements hook_commerce_checkout_pane_info_alter().
+ *
+ * We do the integration with the commerce in another way, by adding a
+ * pre_render callback in the hook_form_alter(). We had some issues with adding
+ * validation callbacks.
+ */
+/*
 function ife_commerce_checkout_pane_info_alter(&$panes) {
   foreach ((array) $panes as $key => $pane) {
     if (!isset($panes[$key]['callbacks'])) {
@@ -313,3 +357,4 @@ function ife_commerce_checkout_pane_info_alter(&$panes) {
     }
   }
 }
+*/
