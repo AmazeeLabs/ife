@@ -10,6 +10,8 @@
 function ife_settings_form($form, $form_state) {
   $form = array();
 
+  $form['#variable_edit_form'] = TRUE;
+
   // General options.
   $form['general_settings'] = array(
     '#type' => 'fieldset',
