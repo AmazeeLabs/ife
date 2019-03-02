@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @file
  * Admin settings pages.
@@ -143,7 +144,7 @@ function ife_settings_form_validate($form, &$form_state) {
  */
 function ife_settings_form_submit($form, &$form_state) {
   $values = $form_state['values'];
-  
+
   // Write form_ids to the database.
   $form_ids = $values['form_ids'];
   array_pop($form_ids);

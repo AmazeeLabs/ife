@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @file
  * Set variables for translation.
