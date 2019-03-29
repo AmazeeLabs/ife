@@ -83,7 +83,7 @@ function ife_help($path, $arg) {
 function ife_form_id_load($form_id, $reset = FALSE) {
   $form_ids = ife_load_form_ids($reset);
 
-  foreach ((array) $form_ids as $form_id_pattern => $form_settings) {
+  foreach ($form_ids as $form_id_pattern => $form_settings) {
     if (ife_match_form_id($form_id, $form_id_pattern)) {
       return $form_settings;
     }
