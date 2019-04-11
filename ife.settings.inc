@@ -28,6 +28,13 @@ function ife_settings_form($form, $form_state) {
     '#default_value' => variable_get('ife_show_form_ids', 0),
   );
 
+  $form['general_settings']['ife_show_everywhere'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Show everywhere'),
+    '#description' => t('This option will show inline form errors on all forms. You can ignore all settings in the form conversion fieldset.'),
+    '#default_value' => variable_get('ife_show_everywhere', 0)
+  );
+
   $form['general_settings']['ife_display'] = array(
     '#type' => 'select',
     '#title' => t('Default display settings'),
